@@ -31,6 +31,8 @@ import {
   useCaseSensitiveFileNames,
 } from './utils';
 
+console.log(`LINKED TS-LOADER`);
+
 function makeResolversAndModuleResolutionHost(
   scriptRegex: RegExp,
   loader: webpack.loader.LoaderContext,
@@ -282,15 +284,33 @@ function makeResolvers<T extends typescript.ModuleResolutionHost>(
     _reusedNames?: string[] | undefined,
     _redirectedReference?: typescript.ResolvedProjectReference | undefined
   ): (typescript.ResolvedModule | undefined)[] => {
-    const resolvedModules = moduleNames.map(moduleName =>
-      resolveModule(
-        resolveSync,
-        resolveModuleName,
-        appendTsTsxSuffixesIfRequired,
-        scriptRegex,
+    // This causes typescript to error:
+    // const resolvedModules = Array.from(new Set(moduleNames)).map(moduleName =>
+
+    const uniqueModuleNames = Array.from(new Set(moduleNames));
+
+    // const saved = moduleNames.length - uniqueModuleNames.length;
+    // if (!!saved) {
+    //     console.log(`Saved ${moduleNames.length - uniqueModuleNames.length} resolutions in ${containingFile}`);
+    // }
+
+    const uniqueResolvedModules = new Map(
+      uniqueModuleNames.map(moduleName => [
         moduleName,
-        containingFile
-      )
+        resolveModule(
+          resolveSync,
+          resolveModuleName,
+          appendTsTsxSuffixesIfRequired,
+          scriptRegex,
+          moduleName,
+          containingFile
+        ),
+      ])
+    );
+
+    // why do we need duplicates though?
+    const resolvedModules = moduleNames.map(
+      moduleName => uniqueResolvedModules.get(moduleName)!
     );
 
     populateDependencyGraph(resolvedModules, instance, containingFile);
@@ -1121,6 +1141,23 @@ function isJsImplementationOfTypings(
   );
 }
 
+import * as fs from 'fs';
+const moduleCache = new Map<string, ResolvedModule>();
+const peerCache = new Map<string, ResolvedModule>();
+
+// not a general solution, but might help prove an optimization
+function nearestProjectRoot(path: string) {
+  const nearest = /.*(?:(?:^|\/)node_modules(?:\/|$))|(?:\/packages\/.*\/)/gim.exec(
+    path
+  )?.[0];
+
+  if (!nearest) {
+    console.log(`No nearest for ${path}`);
+  }
+
+  return nearest || '';
+}
+
 function resolveModule(
   resolveSync: ResolveSync,
   resolveModuleName: ResolveModuleName,
@@ -1129,7 +1166,7 @@ function resolveModule(
   moduleName: string,
   containingFile: string
 ) {
-  let resolutionResult: ResolvedModule;
+  let resolutionResult: ResolvedModule | undefined;
 
   try {
     const originalFileName = resolveSync(
@@ -1140,16 +1177,44 @@ function resolveModule(
 
     const resolvedFileName = appendTsTsxSuffixesIfRequired(originalFileName);
 
-    if (resolvedFileName.match(scriptRegex) !== null) {
+    if (scriptRegex.test(resolvedFileName)) {
       resolutionResult = { resolvedFileName, originalFileName };
     }
   } catch (e) {}
 
+  let cache: Map<string, ResolvedModule>;
+  let cacheKey: string;
+
+  try {
+    [cache, cacheKey] = /^\./i.test(moduleName)
+      ? [
+          peerCache,
+          path.normalize(
+            path.join(path.dirname(fs.realpathSync(containingFile)), moduleName)
+          ),
+        ]
+      : [moduleCache, `${nearestProjectRoot(containingFile)}~${moduleName}`];
+  } catch (e) {
+    console.log(`Error in ${containingFile} for ${moduleName}: ${e}`);
+    throw e;
+  }
+
+  const cachedResolutionResult = cache.get(cacheKey);
+
   const tsResolution = resolveModuleName(moduleName, containingFile);
+
+  const mode = 'engage' as 'verify-match' | 'engage';
+
+  if (!!cachedResolutionResult && mode === 'engage') {
+    //console.log(`From cache: ${JSON.stringify(cachedResolutionResult)}`);
+    return cachedResolutionResult;
+  }
+
   if (tsResolution.resolvedModule !== undefined) {
     const resolvedFileName = path.normalize(
       tsResolution.resolvedModule.resolvedFileName
     );
+
     const tsResolutionResult: ResolvedModule = {
       originalFileName: resolvedFileName,
       resolvedFileName,
@@ -1157,13 +1222,32 @@ function resolveModule(
         tsResolution.resolvedModule.isExternalLibraryImport,
     };
 
-    return resolutionResult! === undefined ||
+    resolutionResult =
+      resolutionResult! === undefined ||
       resolutionResult.resolvedFileName ===
         tsResolutionResult.resolvedFileName ||
       isJsImplementationOfTypings(resolutionResult!, tsResolutionResult)
-      ? tsResolutionResult
-      : resolutionResult!;
+        ? tsResolutionResult
+        : resolutionResult!;
+
+    cache.set(cacheKey, resolutionResult);
   }
+
+  if (!!cachedResolutionResult && mode === 'verify-match') {
+    if (
+      JSON.stringify(cachedResolutionResult) !==
+      JSON.stringify(resolutionResult)
+    ) {
+      console.log(
+        `Mismatch ${cacheKey} ${JSON.stringify(
+          cachedResolutionResult,
+          undefined,
+          '  '
+        )} !== ${JSON.stringify(resolutionResult, undefined, '  ')}`
+      );
+    }
+  }
+
   return resolutionResult!;
 }
 
