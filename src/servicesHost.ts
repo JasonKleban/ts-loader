@@ -1203,6 +1203,9 @@ function resolveModule(
 
   const tsResolution = resolveModuleName(moduleName, containingFile);
 
+  // Do we want to assume that it works and engage the behavior of returning the
+  // cached version or do we want to run it as normal and compare what WOULD be
+  // returned by cache to make sure they match?
   const mode = 'engage' as 'verify-match' | 'engage';
 
   if (!!cachedResolutionResult && mode === 'engage') {
