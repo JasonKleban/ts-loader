@@ -91,7 +91,6 @@
     "karma-sourcemap-loader": "^0.3.6",
     "karma-webpack": "^4.0.0-rc.5",
     "lint-staged": "^8.0.0",
-    "markdown-toc": "^1.2.0",
     "mkdirp": "^0.5.1",
     "mocha": "^6.0.0",
     "prettier": "^2.0.5",
