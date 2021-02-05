@@ -1145,7 +1145,8 @@ import * as fs from 'fs';
 const moduleCache = new Map<string, ResolvedModule>();
 const peerCache = new Map<string, ResolvedModule>();
 
-// not a general solution, but might help prove an optimization
+// not a general solution, but might help prove an optimization this just finds
+// the closest node_modules folder or monorepo pacakage path
 function nearestProjectRoot(path: string) {
   const nearest = /.*(?:(?:^|\/)node_modules(?:\/|$))|(?:\/packages\/.*\/)/gim.exec(
     path
@@ -1193,25 +1194,27 @@ function resolveModule(
             path.join(path.dirname(fs.realpathSync(containingFile)), moduleName)
           ),
         ]
-      : [moduleCache, `${nearestProjectRoot(containingFile)}~${moduleName}`];
+      : // different projects can have different resolved node_modules versions
+        // so use the nearest project root path to group them in the cache.
+        [moduleCache, `${nearestProjectRoot(containingFile)}~${moduleName}`];
   } catch (e) {
     console.log(`Error in ${containingFile} for ${moduleName}: ${e}`);
     throw e;
   }
-
-  const cachedResolutionResult = cache.get(cacheKey);
-
-  const tsResolution = resolveModuleName(moduleName, containingFile);
 
   // Do we want to assume that it works and engage the behavior of returning the
   // cached version or do we want to run it as normal and compare what WOULD be
   // returned by cache to make sure they match?
   const mode = 'engage' as 'verify-match' | 'engage';
 
+  const cachedResolutionResult = cache.get(cacheKey);
+
   if (!!cachedResolutionResult && mode === 'engage') {
     //console.log(`From cache: ${JSON.stringify(cachedResolutionResult)}`);
     return cachedResolutionResult;
   }
+
+  const tsResolution = resolveModuleName(moduleName, containingFile);
 
   if (tsResolution.resolvedModule !== undefined) {
     const resolvedFileName = path.normalize(
