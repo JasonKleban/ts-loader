@@ -1,5 +1,38 @@
 # Changelog
 
+## v9.1.0
+
+* [Use caches for module resolution and type reference directives when using compiler default functions](https://github.com/TypeStrong/ts-loader/pull/1287) - thanks @sheetalkamat - uses: https://github.com/microsoft/TypeScript/pull/43700
+
+## v9.0.2
+
+* [Remove usage of loader-utils](https://github.com/TypeStrong/ts-loader/pull/1288) - thanks @jonwallsten
+
+## v9.0.1
+
+* [Use correct hook for emitting additional assets during compilation](https://github.com/TypeStrong/ts-loader/pull/1286) - thanks @jonwallsten
+
+## v9.0.0
+
+Breaking changes:
+- minimum webpack version: 5
+- minimum node version: 12
+
+Changes:
+* [webpack 5 migration](https://github.com/TypeStrong/ts-loader/pull/1251) - thanks @johnnyreilly, @jonwallsten, @sokra, @appzuka, @alexander-akait
+
+## v8.1.0
+* [feat: remove top-level typescript import statements](https://github.com/TypeStrong/ts-loader/pull/1259) - thanks @ulivz
+
+## v8.0.18
+* [Perf: Optimize fileExists callback path](https://github.com/TypeStrong/ts-loader/issues/1266) - thanks @berickson1
+
+## v8.0.17
+* [Included correct webpack source location in emitted errors](https://github.com/TypeStrong/ts-loader/issues/1199) - thanks @lorenzodallavecchia
+
+## v8.0.16
+* [Re-Fixed missing errors in watch mode in webpack5](https://github.com/TypeStrong/ts-loader/issues/1204) - thanks @appzuka
+
 ## v8.0.15
 * [Update definition files in watch mode in webpack@5](https://github.com/TypeStrong/ts-loader/pull/1249) - thanks @appzuka,@JonWallsten,@alexander-akait
 * [Add afterDeclarations to getCustomTransformers in README.md](https://github.com/TypeStrong/ts-loader/pull/1248) - thanks @appzuka

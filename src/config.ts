@@ -1,10 +1,10 @@
 import { Chalk } from 'chalk';
 import * as path from 'path';
-import * as typescript from 'typescript';
+import type * as typescript from 'typescript';
 import * as webpack from 'webpack';
 
 import { getCompilerOptions } from './compilerSetup';
-import { LoaderOptions, WebpackError } from './interfaces';
+import { LoaderOptions, WebpackLoaderContext } from './interfaces';
 import * as logger from './logger';
 import { formatErrors, useCaseSensitiveFileNames } from './utils';
 
@@ -16,7 +16,7 @@ interface ConfigFile {
 export function getConfigFile(
   compiler: typeof typescript,
   colors: Chalk,
-  loader: webpack.loader.LoaderContext,
+  loader: WebpackLoaderContext,
   loaderOptions: LoaderOptions,
   compilerCompatible: boolean,
   log: logger.Logger,
@@ -27,7 +27,7 @@ export function getConfigFile(
     path.dirname(loader.resourcePath),
     loaderOptions.configFile
   );
-  let configFileError: WebpackError | undefined;
+  let configFileError: webpack.WebpackError | undefined;
   let configFile: ConfigFile;
 
   if (configFilePath !== undefined) {
@@ -159,9 +159,7 @@ export function getConfigParseResult(
   return configParseResult;
 }
 
-const extendedConfigCache = new Map() as typescript.Map<
-  typescript.ExtendedConfigCacheEntry
->;
+const extendedConfigCache = new Map() as typescript.Map<typescript.ExtendedConfigCacheEntry>;
 export function getParsedCommandLine(
   compiler: typeof typescript,
   loaderOptions: LoaderOptions,
@@ -187,7 +185,7 @@ export function getParsedCommandLine(
     extendedConfigCache
   );
   if (result) {
-    result.options = getCompilerOptions(result);
+    result.options = getCompilerOptions(result, compiler);
   }
   return result;
 }
